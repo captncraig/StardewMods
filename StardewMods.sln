@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastPlace", "FastPlace\Fast
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PermanentSigns", "PermanentSigns\PermanentSigns.csproj", "{72AFCBE5-1608-4540-8AE9-92B2901420D4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GiantSeeds", "GiantSeeds\GiantSeeds.csproj", "{B39A51F9-0144-474D-ADD0-9AF65CF7CAB0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{72AFCBE5-1608-4540-8AE9-92B2901420D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{72AFCBE5-1608-4540-8AE9-92B2901420D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{72AFCBE5-1608-4540-8AE9-92B2901420D4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B39A51F9-0144-474D-ADD0-9AF65CF7CAB0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B39A51F9-0144-474D-ADD0-9AF65CF7CAB0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B39A51F9-0144-474D-ADD0-9AF65CF7CAB0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B39A51F9-0144-474D-ADD0-9AF65CF7CAB0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
