@@ -13,6 +13,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PermanentSigns", "Permanent
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GiantSeeds", "GiantSeeds\GiantSeeds.csproj", "{B39A51F9-0144-474D-ADD0-9AF65CF7CAB0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComeGetPresents", "ComeGetPresents\ComeGetPresents.csproj", "{BEFE5709-FA0F-431E-8CB9-0029FCCA4F25}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Graph.Farm.Website", "Graph.Farm.Website\Graph.Farm.Website.csproj", "{C86A549B-45F6-49E5-B630-2A6CEDDF4280}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +43,14 @@ Global
 		{B39A51F9-0144-474D-ADD0-9AF65CF7CAB0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B39A51F9-0144-474D-ADD0-9AF65CF7CAB0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B39A51F9-0144-474D-ADD0-9AF65CF7CAB0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BEFE5709-FA0F-431E-8CB9-0029FCCA4F25}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEFE5709-FA0F-431E-8CB9-0029FCCA4F25}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BEFE5709-FA0F-431E-8CB9-0029FCCA4F25}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BEFE5709-FA0F-431E-8CB9-0029FCCA4F25}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C86A549B-45F6-49E5-B630-2A6CEDDF4280}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C86A549B-45F6-49E5-B630-2A6CEDDF4280}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C86A549B-45F6-49E5-B630-2A6CEDDF4280}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C86A549B-45F6-49E5-B630-2A6CEDDF4280}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
