@@ -1,11 +1,12 @@
 ﻿using Dapper;
+using HashidsNet;
 using Microsoft.AspNetCore.Mvc;
 using MySql.Data.MySqlClient;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using HashidsNet;
 
 namespace Graph.Farm.Website.Controllers
 {
@@ -17,9 +18,13 @@ namespace Graph.Farm.Website.Controllers
 
     public class NewGameRequest
     {
-        public float UniqueSeed { get; set; }
+        [Required]
+        public ulong UniqueSeed { get; set; }
+        [Required]
         public string Name { get; set; }
+        [Required]
         public string FarmName { get; set; }
+        [Required]
         public string FavoriteThing { get; set; }
     }
 
@@ -52,9 +57,9 @@ namespace Graph.Farm.Website.Controllers
             return result.ToString();
         }
 
-        static Hashids hid = new Hashids(Settings.HashIDSalt,6);
+        static Hashids hid = new Hashids(Settings.HashIDSalt, 6);
 
-        private string sha(string target)
+        public static string sha(string target)
         {
             StringBuilder Sb = new StringBuilder();
 
@@ -74,25 +79,30 @@ namespace Graph.Farm.Website.Controllers
         [HttpPost("newAccount")]
         public async Task<ActionResult<NewAccountResponse>> NewAccount()
         {
-            using(var db = await DB())
+            using (var db = await DB())
             {
                 var api = genAPIKey();
-                
+
                 var id = (await db.QueryAsync<int>(@"INSERT INTO Accounts (ApiKeyHash) VALUES (@keyhash);
 SELECT LAST_INSERT_ID();", new { keyhash = sha(api) })).Single();
 
                 return new NewAccountResponse { SecretToken = api, ID = hid.Encode(id) };
             }
-            
+
         }
 
         // POST api/newGame
         [HttpPost("newGame")]
+        [AuthFilter(false)]
         public async Task<ActionResult<string>> NewGame([FromBody] NewGameRequest req)
         {
-            using (await DB())
+            using (var db = await DB())
             {
-                return "aaaaaa";
+                var acct = HttpContext.Items[AuthFilter.ContextKey];
+                var id = (await db.QueryAsync<int>(@"INSERT INTO Games (AccountId, Seed, Name, FarmName, FavoriteThing ) 
+VALUES (@acct, @seed, @name, @farm, @fav);
+SELECT LAST_INSERT_ID();", new { acct, seed = req.UniqueSeed, name = req.Name, farm = req.FarmName, fav = req.FavoriteThing })).Single();
+                return hid.Encode(id);
             }
         }
 

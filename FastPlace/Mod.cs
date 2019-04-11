@@ -28,6 +28,7 @@ namespace FastPlace
 
         private void InventoryChanged(object sender, InventoryChangedEventArgs e)
         {
+
             if (e.IsLocalPlayer && e.Removed.Count() == 1 && e.Added.Count() == 0 && e.QuantityChanged.Count() == 0)
             {
                 var item = e.Removed.Single() as StardewValley.Object;
