@@ -88,6 +88,7 @@ SELECT LAST_INSERT_ID();", new { keyhash = sha(api) })).Single();
 
         // POST api/newGame
         [HttpPost("newGame")]
+        [AccountFilter]
         public async Task<ActionResult<string>> NewGame([FromBody] NewGameRequest req)
         {
             using (await DB())
