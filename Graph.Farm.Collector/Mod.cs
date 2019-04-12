@@ -8,15 +8,61 @@ using StardewValley.TerrainFeatures;
 
 namespace Graph.Farm.Collector
 {
+    public class GlobalConfig
+    {
+        public const string defaultHost = "https://graph.farm";
+
+        public string ApiToken { get; set; }
+        public string AccountID { get; set; }
+
+        public string Host { get; set; } = defaultHost;
+     }
+
     public class ModEntry : Mod
     {
+        private GlobalConfig config;
+        private ApiClient api;
+
         public override void Entry(IModHelper helper)
         {
-            // TODO: CREATE ACCOUNT
+            config = helper.ReadConfig<GlobalConfig>();
+            api = new ApiClient(config.Host);
+
+            if(!setupAccount()) return;
 
             helper.Events.GameLoop.SaveLoaded += SaveLoaded;
             helper.Events.GameLoop.TimeChanged += (o, e) => TimeChanged();
             helper.Events.GameLoop.DayStarted += (o, e) => DayStart();
+        }
+
+        private bool setupAccount()
+        {
+            Monitor.Log($"Checking account status with {config.Host}");
+            if (string.IsNullOrEmpty(config.ApiToken) != string.IsNullOrEmpty(config.AccountID))
+            {
+                Monitor.Log($"BAD CONFIG: ApiToken and AccountID must both be specified. No stats will be tracked this session.", LogLevel.Error);
+                return false;
+            } 
+            if (string.IsNullOrEmpty(config.ApiToken))
+            {
+                Monitor.Log("No graph.farm account found. Creating one now.");
+
+                try
+                {
+                    var acct = api.CreateAccount().Result;
+                    Monitor.Log($"Account ID {acct.ID}, api key {acct.SecretToken}", LogLevel.Debug);
+                }catch(Exception e)
+                {
+                    while (e.InnerException != null)
+                    {
+                        e = e.InnerException;
+                    }
+                    Monitor.Log($"ERROR REGISTERING ACCOUNT: {e.Message}", LogLevel.Error);
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         IDictionary<string, double> lastValues;
@@ -107,6 +153,13 @@ namespace Graph.Farm.Collector
                 lastValues[key] = val;
                 AddRaw(ts, val, metric, tags);
             }
+        }
+
+        private void AddSkipZero(int ts, double val, string metric, params string[] tags)
+        {
+            var key = metric + string.Join(",", tags);
+            if (val == 0 && !lastValues.ContainsKey(key)) return;
+            Add(ts, val, metric, tags);
         }
 
         private void AddRaw(int ts, double val, string metric, params string[] tags)
@@ -229,19 +282,19 @@ namespace Graph.Farm.Collector
                 Add(ts, watered, "location_watered", loc.Name);
             }
             // todo: big crops, big stumps, boulders, meteors
-            Add(ts, grass, "objects", loc.Name, "grass");
-            Add(ts,stumps, "objects", loc.Name, "stumps");
-            Add(ts,trees, "objects", loc.Name, "trees");
-            Add(ts,saplings, "objects", loc.Name, "saplings");
-            Add(ts,hoedirt, "objects", loc.Name,"hoedirt");
-            Add(ts,crops, "objects", loc.Name, "crops");
-            Add(ts,dead, "objects", loc.Name, "deadcrops");
-            Add(ts,weeds, "objects", loc.Name, "weeds");
-            Add(ts,stone, "objects", loc.Name, "stone");
-            Add(ts,artifacts, "objects", loc.Name, "artifacts");
-            Add(ts,twigs, "objects", loc.Name, "twigs");
-            Add(ts,forage, "objects", loc.Name, "forage");
-            Add(ts, loc.debris.Count, "objects", loc.Name, "debris");
+            AddSkipZero(ts, grass, "objects", loc.Name, "grass");
+            AddSkipZero(ts,stumps, "objects", loc.Name, "stumps");
+            AddSkipZero(ts,trees, "objects", loc.Name, "trees");
+            AddSkipZero(ts,saplings, "objects", loc.Name, "saplings");
+            AddSkipZero(ts,hoedirt, "objects", loc.Name,"hoedirt");
+            AddSkipZero(ts,crops, "objects", loc.Name, "crops");
+            AddSkipZero(ts,dead, "objects", loc.Name, "deadcrops");
+            AddSkipZero(ts,weeds, "objects", loc.Name, "weeds");
+            AddSkipZero(ts,stone, "objects", loc.Name, "stone");
+            AddSkipZero(ts,artifacts, "objects", loc.Name, "artifacts");
+            AddSkipZero(ts,twigs, "objects", loc.Name, "twigs");
+            AddSkipZero(ts,forage, "objects", loc.Name, "forage");
+            AddSkipZero(ts, loc.debris.Count, "objects", loc.Name, "debris");
         }
     }
 
