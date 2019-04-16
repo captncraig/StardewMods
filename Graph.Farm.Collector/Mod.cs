@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
 using StardewValley;
+using System.IO;
 using StardewValley.TerrainFeatures;
-
+using System.Text;
 
 namespace Graph.Farm.Collector
 {
@@ -24,18 +26,7 @@ namespace Graph.Farm.Collector
             helper.Events.GameLoop.TimeChanged += (o, e) => TimeChanged();
             helper.Events.GameLoop.DayStarted += (o, e) => DayStart();
             helper.Events.GameLoop.DayEnding += (o, e) => DayEnding();
-            helper.Events.Display.MenuChanged += MenuChanged;
             StartServer();
-        }
-
-        private void MenuChanged(object sender, MenuChangedEventArgs e)
-        {
-            //throw new NotImplementedException();
-        }
-
-        private void DayEnding()
-        {
-            AddRaw(TimeStamp(), Game1.timeOfDay, "bedtime");
         }
 
         private void StartServer()
@@ -68,6 +59,21 @@ namespace Graph.Farm.Collector
             TimeChanged();
         }
 
+        private void DayEnding()
+        {
+            if (SDate.Now().DaysSinceStart == 0) return;
+            AddRaw(TimeStamp(), Game1.timeOfDay, "bedtime");
+            // move end of day stats up one tick. If you go to bed too fast, you won't get the final actions performed between last timechanged and getting to bed.
+            // mostly stepstaken, but could be more.
+            var ts = TimeStamp();
+            if (Game1.timeOfDay < 2600)
+            {
+                ts++;
+            }
+            Collect(ts);
+            Send();
+        }
+
         private void TimeChanged()
         {
             var ts = TimeStamp();
@@ -77,6 +83,14 @@ namespace Graph.Farm.Collector
                 return;
             }
             lastTimeChange = ts;
+
+            Collect(ts);
+
+            Send();
+        }
+
+        private void Collect(int ts)
+        {
             var p = Game1.player;
 
             Add(ts, p.stats.stepsTaken, "stepstaken");
@@ -93,6 +107,13 @@ namespace Graph.Farm.Collector
             Add(ts, (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds, "time");
             Add(ts, p.deepestMineLevel, "minelevel");
             Add(ts, Game1.weatherIcon, "weather");
+            Add(ts, Game1.stats.timesFished, "timesfished");
+            
+            foreach(var kvp in p.fishCaught)
+            {
+                var obj = new StardewValley.Object(kvp.Key, 1);
+                Add(ts, kvp.Value[0], "fishCaught", obj.Name);
+            }
             foreach (var kvp in p.friendshipData.Pairs)
             {
                 Add(ts, kvp.Value.Points, "friendship", kvp.Key);
@@ -109,17 +130,13 @@ namespace Graph.Farm.Collector
             {
                 locationStats(loc, ts);
             }
-
-            // TODO: do this at end of day
-            // foreach (var grp in Game1.getFarm().shippingBin.GroupBy(x => x.Name))
-            // {
-            //     // TODO: account for quality
-            //     var total = grp.Sum(x => x.Stack);
-            //     Add(ts, total, "shippingBin", grp.Key);
-            // }
-            Send();
         }
 
+        // Converts time into a continuous counter from 0 to n.
+        // Each increment represents 10 minutes, and each day has 120 possible
+        // values. 600 is 0, 610 is 1, 700 is 6, and 2600 is 120. 
+        // 121 possible values for each day.
+        // 600 day 2 is 121.
         public static int TimeStamp()
         {
             var date = SDate.Now();
@@ -142,6 +159,7 @@ namespace Graph.Farm.Collector
             }
         }
 
+        // like add, but won;t add a zero value unless it is already in the dataset.
         private void AddSkipZero(int ts, double val, string metric, string tag0 = null, string tag1 = null)
         {
             var key = metric + string.Join(",", tag0, tag1);
@@ -233,6 +251,7 @@ namespace Graph.Farm.Collector
                     continue;
                 }
             }
+            var stones = loc.Objects.Values.Where(x => x.Name == "Stone").GroupBy(x => x.ParentSheetIndex).ToDictionary(x => x.Key, x => x.Count());
             foreach (var obj in loc.Objects.Values)
             {
                 if (obj.Name == "Weeds") {
@@ -258,6 +277,10 @@ namespace Graph.Farm.Collector
                 {
                     forage++;
                     continue;
+                }
+                else
+                {
+
                 }
             }
             AddSkipZero(ts, watered, "objects", loc.Name, "watered");
