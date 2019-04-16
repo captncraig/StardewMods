@@ -1,0 +1,57 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.4.0.min.js" integrity="sha256-BJeo0qm959uMBGb65z40ejJYGSgR7REI4+CW1fNKwOg=" crossorigin="anonymous"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <title>Stardew Stats</title>
+</head>
+<body>
+    <div class="container-fluid">
+        <h3>Farmer Bob of Farm Farm</h3>
+        <div class="row" style="height:300px;">
+            <div class="col-md-4 x-line" id="line0" metric="skill" >
+                Loading stepstaken...
+            </div> 
+        </div>
+    </div>
+    <script>
+        $(".x-line").each(function (index) {
+            var el = $(this);
+            var metric = el.attr("metric");
+            $.get(`api/ts?metric=${metric}`, function (data) {
+                console.log(data);
+                var series = [];
+                for (var key in data) {
+                    var ts = data[key];
+                    pts = [];
+                    for (var idx in ts.t) {
+                        pts.push([ts.t[idx], ts.v[idx]]);
+                    }
+                    series.push({
+                        name: key || metric,
+                        data: pts,
+                        type: "line",
+                    });
+                }
+                console.log(series);
+                Highcharts.chart('line0', {
+                    xAxis: {
+                        tickInterval: 121,
+                        labels: {
+                            formatter: function () {
+                                return "Spring " + this.value + ' y1';
+                            }
+                        },
+                    },
+                    series: series
+                });
+            });
+        });
+            
+
+    </script>
+</body>
+</html>

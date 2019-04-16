@@ -1,78 +1,63 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
 using StardewValley;
 using StardewValley.TerrainFeatures;
 
+
 namespace Graph.Farm.Collector
 {
-    public class GlobalConfig
-    {
-        public const string defaultHost = "https://graph.farm";
-
-        public string ApiToken { get; set; }
-        public string AccountID { get; set; }
-
-        public string Host { get; set; } = defaultHost;
-     }
 
     public class ModEntry : Mod
     {
-        private GlobalConfig config;
-        private ApiClient api;
+        public ModConfig config;
+        public static ModEntry Instance;
 
         public override void Entry(IModHelper helper)
         {
-            config = helper.ReadConfig<GlobalConfig>();
-            api = new ApiClient(config.Host);
-
-            if(!setupAccount()) return;
-
+            Instance = this;
+            config = helper.ReadConfig<ModConfig>();
             helper.Events.GameLoop.SaveLoaded += SaveLoaded;
             helper.Events.GameLoop.TimeChanged += (o, e) => TimeChanged();
             helper.Events.GameLoop.DayStarted += (o, e) => DayStart();
+            helper.Events.GameLoop.DayEnding += (o, e) => DayEnding();
+            helper.Events.Display.MenuChanged += MenuChanged;
+            StartServer();
         }
 
-        private bool setupAccount()
+        private void MenuChanged(object sender, MenuChangedEventArgs e)
         {
-            Monitor.Log($"Checking account status with {config.Host}");
-            if (string.IsNullOrEmpty(config.ApiToken) != string.IsNullOrEmpty(config.AccountID))
-            {
-                Monitor.Log($"BAD CONFIG: ApiToken and AccountID must both be specified. No stats will be tracked this session.", LogLevel.Error);
-                return false;
-            } 
-            if (string.IsNullOrEmpty(config.ApiToken))
-            {
-                Monitor.Log("No graph.farm account found. Creating one now.");
+            //throw new NotImplementedException();
+        }
 
-                try
-                {
-                    var acct = api.CreateAccount().Result;
-                    Monitor.Log($"Account ID {acct.ID}, api key {acct.SecretToken}", LogLevel.Debug);
-                }catch(Exception e)
-                {
-                    while (e.InnerException != null)
-                    {
-                        e = e.InnerException;
-                    }
-                    Monitor.Log($"ERROR REGISTERING ACCOUNT: {e.Message}", LogLevel.Error);
-                    return false;
-                }
+        private void DayEnding()
+        {
+            AddRaw(TimeStamp(), Game1.timeOfDay, "bedtime");
+        }
+
+        private void StartServer()
+        {
+            if (string.IsNullOrEmpty(config.ListenAddress))
+            {
+                Monitor.Log("Not starting http listener since config specifies no ListenAddress");
+                return;
             }
-
-            return true;
+            new HttpServer(config.ListenAddress);
         }
 
         IDictionary<string, double> lastValues;
         int lastTimeChange = -1;
         IList<Datapoint> toSend;
+        public Database db;
 
         private void SaveLoaded(object sender, SaveLoadedEventArgs e)
         {
-            // TODO: Register Game
-            // TODO: Clear data from current time on
+            db = new Database(Constants.CurrentSavePath);
+            var ts = TimeStamp();
+            db.ClearAfter(ts);
             lastValues = new Dictionary<string, double>();
             toSend = new List<Datapoint>();
             lastTimeChange = -1;
@@ -86,12 +71,12 @@ namespace Graph.Farm.Collector
         private void TimeChanged()
         {
             var ts = TimeStamp();
+            Monitor.Log($"Time Changed to {SDate.Now()} {Game1.timeOfDay} {TimeStamp()}");
             if (ts == lastTimeChange)
             {
                 return;
             }
             lastTimeChange = ts;
-            Monitor.Log($"Time Changed to {SDate.Now()} {Game1.timeOfDay} {TimeStamp()}");
             var p = Game1.player;
 
             Add(ts, p.stats.stepsTaken, "stepstaken");
@@ -105,12 +90,14 @@ namespace Graph.Farm.Collector
             Add(ts, p.experiencePoints[2], "skill", "foraging");
             Add(ts, p.experiencePoints[3], "skill", "mining");
             Add(ts, p.experiencePoints[4], "skill", "combat");
-            Add(ts, (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds, "realtime");
-            Add(ts, ts, "time");
-
+            Add(ts, (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds, "time");
+            Add(ts, p.deepestMineLevel, "minelevel");
+            Add(ts, Game1.weatherIcon, "weather");
             foreach (var kvp in p.friendshipData.Pairs)
             {
                 Add(ts, kvp.Value.Points, "friendship", kvp.Key);
+                Add(ts, kvp.Value.GiftsThisWeek, "giftsweek", kvp.Key);
+                Add(ts, kvp.Value.GiftsToday, "giftstoday", kvp.Key);
             }
             foreach (var kvp in p.basicShipped)
             {
@@ -145,31 +132,32 @@ namespace Graph.Farm.Collector
             return datePart + timePart;
         }
 
-        private void Add(int ts, double val, string metric, params string[] tags)
+        private void Add(int ts, double val, string metric, string tag0 = null, string tag1 = null)
         {
-            var key = metric + string.Join(",", tags);
+            var key = metric + string.Join(",", tag0, tag1);
             if (!lastValues.ContainsKey(key) || lastValues[key] != val)
             {
                 lastValues[key] = val;
-                AddRaw(ts, val, metric, tags);
+                AddRaw(ts, val, metric, tag0, tag1);
             }
         }
 
-        private void AddSkipZero(int ts, double val, string metric, params string[] tags)
+        private void AddSkipZero(int ts, double val, string metric, string tag0 = null, string tag1 = null)
         {
-            var key = metric + string.Join(",", tags);
+            var key = metric + string.Join(",", tag0, tag1);
             if (val == 0 && !lastValues.ContainsKey(key)) return;
-            Add(ts, val, metric, tags);
+            Add(ts, val, metric, tag0, tag1);
         }
 
-        private void AddRaw(int ts, double val, string metric, params string[] tags)
+        private void AddRaw(int ts, double val, string metric, string tag0 = null, string tag1 = null)
         {
             var dp = new Datapoint
             {
                 Timestamp = ts,
                 Value = val,
                 Metric = metric,
-                Tags = tags,
+                Tag0 = tag0,
+                Tag1 = tag1,
             };
             toSend.Add(dp);
         }
@@ -180,9 +168,9 @@ namespace Graph.Farm.Collector
             toSend = new List<Datapoint>();
             foreach (var dp in thisBatch)
             {
-                Monitor.Log($"{dp.Timestamp} {dp.Metric} {string.Join(",", dp.Tags)} {dp.Value}", LogLevel.Warn);
+                Monitor.Log($"{dp.Timestamp} {dp.Metric} {dp.Tag0 ?? ""} {dp.Tag1 ?? ""} {dp.Value}", LogLevel.Warn);
             }
-
+            Task.Run(() => db.Insert(thisBatch));
         }
 
         private void locationStats(GameLocation loc, int ts)
@@ -201,10 +189,6 @@ namespace Graph.Farm.Collector
             var twigs = 0;
             var forage = 0;
 
-            if (!loc.IsOutdoors)
-            {
-                return;
-            }
             foreach (var tf in loc.terrainFeatures.Values)
             {
                 if (tf is Grass)
@@ -231,10 +215,6 @@ namespace Graph.Farm.Collector
                 if (tf is HoeDirt)
                 {
                     var hd = tf as HoeDirt;
-                    if (hd.state.Value == 1)
-                    {
-                        watered++;
-                    }
                     if (hd.crop == null)
                     {
                         hoedirt++;
@@ -244,6 +224,10 @@ namespace Graph.Farm.Collector
                     {
                         dead++;
                         continue;
+                    }
+                    if (hd.state.Value == 1)
+                    {
+                        watered++;
                     }
                     crops++;
                     continue;
@@ -276,11 +260,7 @@ namespace Graph.Farm.Collector
                     continue;
                 }
             }
-            if (loc is StardewValley.Farm)
-            {
-                // todo: add greenhouse
-                Add(ts, watered, "location_watered", loc.Name);
-            }
+            AddSkipZero(ts, watered, "objects", loc.Name, "watered");
             // todo: big crops, big stumps, boulders, meteors
             AddSkipZero(ts, grass, "objects", loc.Name, "grass");
             AddSkipZero(ts,stumps, "objects", loc.Name, "stumps");
@@ -298,11 +278,12 @@ namespace Graph.Farm.Collector
         }
     }
 
-    internal class Datapoint
+    public class Datapoint
     {
         public int Timestamp { get; set; }
         public string Metric { get; set; }
-        public string[] Tags { get; set; }
+        public string Tag0 { get; set; }
+        public string Tag1 { get; set; }
         public double Value { get; set; }
     }
 }
