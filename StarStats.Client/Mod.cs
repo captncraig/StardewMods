@@ -1,45 +1,42 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using System.Linq;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
 using StardewValley;
 using StardewValley.TerrainFeatures;
-
+using StarStats.Common;
 
 namespace StarStats.Client
 {
 
     public class ModEntry : Mod
     {
-        public static ModEntry Instance;
 
         public override void Entry(IModHelper helper)
         {
-            Instance = this;
             helper.Events.GameLoop.SaveLoaded += SaveLoaded;
+            helper.Events.GameLoop.Saving += Saving;
             helper.Events.GameLoop.TimeChanged += (o, e) => TimeChanged();
             helper.Events.GameLoop.DayStarted += (o, e) => DayStart();
             helper.Events.GameLoop.DayEnding += (o, e) => DayEnding();
         }
 
-        private void DayEnding()
-        {
-            AddRaw(TimeStamp(), Game1.timeOfDay, "bedtime");
-        }
+        
 
-   
-        int lastTimeChange = -1;
+        uint lastTimeChange = 0;
+        public Database db;
 
         private void SaveLoaded(object sender, SaveLoadedEventArgs e)
         {
-            db = new Database(Constants.CurrentSavePath);
+            db = Helper.Data.ReadJsonFile<Database>($"data/{Constants.SaveFolderName}.json") ?? new Database();
             var ts = TimeStamp();
-            db.ClearAfter(ts);
-            lastValues = new Dictionary<string, double>();
-            toSend = new List<Datapoint>();
-            lastTimeChange = -1;
+            lastTimeChange = 0;
+        }
+
+        private void Saving(object sender, SavingEventArgs e)
+        {
+            Helper.Data.WriteJsonFile($"data/{Constants.SaveFolderName}.json", db);
         }
 
         private void DayStart()
@@ -47,52 +44,82 @@ namespace StarStats.Client
             TimeChanged();
         }
 
+        private void DayEnding()
+        {
+            if (SDate.Now().DaysSinceStart == 0) return;
+            db.AddRaw(TimeStamp(), Game1.timeOfDay, "bedtime");
+            // move end of day stats up one tick. If you go to bed too fast, you won't get the final actions performed between last timechanged and getting to bed.
+            // mostly stepstaken, but could be more.
+            var ts = TimeStamp();
+            if (Game1.timeOfDay < 2600)
+            {
+                ts++;
+            }
+            Collect(ts);
+        }
+
         private void TimeChanged()
         {
             var ts = TimeStamp();
             Monitor.Log($"Time Changed to {SDate.Now()} {Game1.timeOfDay} {TimeStamp()}");
-            if (ts == lastTimeChange)
+            if (ts == lastTimeChange && lastTimeChange > 0)
             {
                 return;
             }
             lastTimeChange = ts;
+
+            Collect(ts);
+        }
+
+        private void Collect(uint ts)
+        {
             var p = Game1.player;
 
-            Add(ts, p.stats.stepsTaken, "stepstaken");
-            Add(ts, p.Money, "money");
-            Add(ts, p.totalMoneyEarned, "earnings");
-            Add(ts, p.stamina, "stamina");
-            Add(ts, p.health, "health");
-            Add(ts, (float)Game1.dailyLuck, "luck");
-            Add(ts, p.experiencePoints[0], "skill", "farming");
-            Add(ts, p.experiencePoints[1], "skill", "fishing");
-            Add(ts, p.experiencePoints[2], "skill", "foraging");
-            Add(ts, p.experiencePoints[3], "skill", "mining");
-            Add(ts, p.experiencePoints[4], "skill", "combat");
-            Add(ts, (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds, "time");
-            Add(ts, p.deepestMineLevel, "minelevel");
-            Add(ts, Game1.weatherIcon, "weather");
+            db.Add(ts, p.stats.stepsTaken, "stepstaken");
+            db.Add(ts, p.Money, "money");
+            db.Add(ts, p.totalMoneyEarned, "earnings");
+            db.Add(ts, p.stamina, "stamina");
+            db.Add(ts, p.health, "health");
+            db.Add(ts, (float)Game1.dailyLuck, "luck");
+            db.Add(ts, p.experiencePoints[0], "skill", $"skill=farming");
+            db.Add(ts, p.experiencePoints[1], "skill", $"skill=fishing");
+            db.Add(ts, p.experiencePoints[2], "skill", $"skill=foraging");
+            db.Add(ts, p.experiencePoints[3], "skill", $"skill=mining");
+            db.Add(ts, p.experiencePoints[4], "skill", $"skill=combat");
+            db.Add(ts, (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds, "time");
+            db.Add(ts, p.deepestMineLevel, "minelevel");
+            db.Add(ts, Game1.weatherIcon, "weather");
+            db.Add(ts, Game1.stats.timesFished, "timesfished");
+            
+            foreach(var kvp in p.fishCaught)
+            {
+                var obj = new StardewValley.Object(kvp.Key, 1);
+                db.Add(ts, kvp.Value[0], "fishCaught", $"type={obj.Name}");
+            }
             foreach (var kvp in p.friendshipData.Pairs)
             {
-                Add(ts, kvp.Value.Points, "friendship", kvp.Key);
-                Add(ts, kvp.Value.GiftsThisWeek, "giftsweek", kvp.Key);
-                Add(ts, kvp.Value.GiftsToday, "giftstoday", kvp.Key);
+                db.Add(ts, kvp.Value.Points, "friendship", $"npc={kvp.Key}");
+                db.Add(ts, kvp.Value.GiftsThisWeek, "giftsweek", $"npc={kvp.Key}");
+                db.Add(ts, kvp.Value.GiftsToday, "giftstoday", $"npc={kvp.Key}");
             }
             foreach (var kvp in p.basicShipped)
             {
                 var obj = new StardewValley.Object(kvp.Key, 1);
-                Add(ts, kvp.Value, "shipped", obj.Name);
+                db.Add(ts, kvp.Value, "shipped", $"item={obj.Name}");
             }
 
             foreach (var loc in Game1.locations)
             {
                 locationStats(loc, ts);
             }
-
-            Send();
         }
 
-        public static int TimeStamp()
+        // Converts time into a continuous counter from 0 to n.
+        // Each increment represents 10 minutes, and each day has 120 possible
+        // values. 600 is 0, 610 is 1, 700 is 6, and 2600 is 120. 
+        // 121 possible values for each day.
+        // 600 day 2 is 121.
+        public static uint TimeStamp()
         {
             var date = SDate.Now();
             var datePart = 121 * (date.DaysSinceStart - 1);
@@ -101,51 +128,10 @@ namespace StarStats.Client
             // Now its 0 1 2 3 4 5 10 11 12 13 14 15 20 21 ....
             var tens = (int)Math.Floor((double)timePart / 10);
             timePart -= 4 * tens;
-            return datePart + timePart;
+            return (uint)(datePart + timePart);
         }
 
-        private void Add(int ts, double val, string metric, string tag0 = null, string tag1 = null)
-        {
-            var key = metric + string.Join(",", tag0, tag1);
-            if (!lastValues.ContainsKey(key) || lastValues[key] != val)
-            {
-                lastValues[key] = val;
-                AddRaw(ts, val, metric, tag0, tag1);
-            }
-        }
-
-        private void AddSkipZero(int ts, double val, string metric, string tag0 = null, string tag1 = null)
-        {
-            var key = metric + string.Join(",", tag0, tag1);
-            if (val == 0 && !lastValues.ContainsKey(key)) return;
-            Add(ts, val, metric, tag0, tag1);
-        }
-
-        private void AddRaw(int ts, double val, string metric, string tag0 = null, string tag1 = null)
-        {
-            var dp = new Datapoint
-            {
-                Timestamp = ts,
-                Value = val,
-                Metric = metric,
-                Tag0 = tag0,
-                Tag1 = tag1,
-            };
-            toSend.Add(dp);
-        }
-
-        private void Send()
-        {
-            var thisBatch = toSend;
-            toSend = new List<Datapoint>();
-            foreach (var dp in thisBatch)
-            {
-                Monitor.Log($"{dp.Timestamp} {dp.Metric} {dp.Tag0 ?? ""} {dp.Tag1 ?? ""} {dp.Value}", LogLevel.Warn);
-            }
-            Task.Run(() => db.Insert(thisBatch));
-        }
-
-        private void locationStats(GameLocation loc, int ts)
+        private void locationStats(GameLocation loc, uint ts)
         {
             var watered = 0;
             var grass = 0;
@@ -205,6 +191,7 @@ namespace StarStats.Client
                     continue;
                 }
             }
+            var stones = loc.Objects.Values.Where(x => x.Name == "Stone").GroupBy(x => x.ParentSheetIndex).ToDictionary(x => x.Key, x => x.Count());
             foreach (var obj in loc.Objects.Values)
             {
                 if (obj.Name == "Weeds") {
@@ -231,31 +218,26 @@ namespace StarStats.Client
                     forage++;
                     continue;
                 }
-            }
-            AddSkipZero(ts, watered, "objects", loc.Name, "watered");
-            // todo: big crops, big stumps, boulders, meteors
-            AddSkipZero(ts, grass, "objects", loc.Name, "grass");
-            AddSkipZero(ts,stumps, "objects", loc.Name, "stumps");
-            AddSkipZero(ts,trees, "objects", loc.Name, "trees");
-            AddSkipZero(ts,saplings, "objects", loc.Name, "saplings");
-            AddSkipZero(ts,hoedirt, "objects", loc.Name,"hoedirt");
-            AddSkipZero(ts,crops, "objects", loc.Name, "crops");
-            AddSkipZero(ts,dead, "objects", loc.Name, "deadcrops");
-            AddSkipZero(ts,weeds, "objects", loc.Name, "weeds");
-            AddSkipZero(ts,stone, "objects", loc.Name, "stone");
-            AddSkipZero(ts,artifacts, "objects", loc.Name, "artifacts");
-            AddSkipZero(ts,twigs, "objects", loc.Name, "twigs");
-            AddSkipZero(ts,forage, "objects", loc.Name, "forage");
-            AddSkipZero(ts, loc.debris.Count, "objects", loc.Name, "debris");
-        }
-    }
+                else
+                {
 
-    public class Datapoint
-    {
-        public int Timestamp { get; set; }
-        public string Metric { get; set; }
-        public string Tag0 { get; set; }
-        public string Tag1 { get; set; }
-        public double Value { get; set; }
+                }
+            }
+            db.AddSkipZero(ts, watered, "objects", $"loc={loc.Name},type=watered");
+            // todo: big crops, big stumps, boulders, meteors
+            db.AddSkipZero(ts, grass, "objects", $"loc={loc.Name},type=grass");
+            db.AddSkipZero(ts,stumps, "objects", $"loc={loc.Name},type=stumps");
+            db.AddSkipZero(ts,trees, "objects", $"loc={loc.Name},type=trees");
+            db.AddSkipZero(ts,saplings, "objects", $"loc={loc.Name},type=saplings");
+            db.AddSkipZero(ts,hoedirt, "objects",$"loc={loc.Name},type=hoedirt");
+            db.AddSkipZero(ts,crops, "objects", $"loc={loc.Name},type=crops");
+            db.AddSkipZero(ts,dead, "objects", $"loc={loc.Name},type=deadcrops");
+            db.AddSkipZero(ts,weeds, "objects", $"loc={loc.Name},type=weeds");
+            db.AddSkipZero(ts,stone, "objects", $"loc={loc.Name},type=stone");
+            db.AddSkipZero(ts,artifacts, "objects", $"loc={loc.Name},type=artifacts");
+            db.AddSkipZero(ts,twigs, "objects", $"loc={loc.Name},type=twigs");
+            db.AddSkipZero(ts,forage, "objects", $"loc={loc.Name},type=forage");
+            db.AddSkipZero(ts, loc.debris.Count, "objects", $"loc={loc.Name},type=debris");
+        }
     }
 }

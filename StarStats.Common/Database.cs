@@ -3,38 +3,68 @@ using System.Linq;
 
 namespace StarStats.Common
 {
-    public struct Timestamp
+    public static class Timestamp
     {
-        public uint Raw;
-
-        public uint DayStart()
+        public static uint DayStart(uint raw)
         {
-            return Raw / 121;
+            return raw / 121;
         }
     }
 
     public class Database
     {
-        public Timestamp Max;
-        private IList<TimeSeries> Metrics;
+        public uint Max;
+        public IList<TimeSeries> Metrics;
 
         public Database()
         {
             Metrics = new List<TimeSeries>();
         }
 
-        public void Insert(Datapoint dp) {
-            var ts = Metrics.SingleOrDefault(x => x.Metric == dp.Metric && x.Tags == dp.Tags);
+        private TimeSeries get(string m, string t)
+        {
+            return Metrics.SingleOrDefault(x => x.Metric == m && x.Tags == t);
+        }
+
+        private TimeSeries getOrCreate(string m, string t)
+        {
+            var ts = get(m, t);
             if (ts == null)
             {
                 ts = new TimeSeries
                 {
-                    Metric = dp.Metric,
-                    Tags = dp.Tags,
+                    Metric = m,
+                    Tags = t,
                 };
                 Metrics.Add(ts);
             }
-            ts.Add(dp.Time, dp.Value);
+            return ts;
+        }
+
+
+        public void Add(uint t, double val, string metric, string tags = null)
+        {
+            var ts = getOrCreate(metric, tags);
+            if(ts.Data.Any() && ts.Data.Last().Value == val)
+            {
+                return;
+            }
+            ts.Add(t, val);
+        }
+
+        // like add, but won;t add a zero value unless it is already in the dataset.
+        public void AddSkipZero(uint t, double val, string metric, string tags = null)
+        {
+            var ts = get(metric, tags);
+            if (ts == null && val == 0) return;
+            ts = getOrCreate(metric, tags);
+            ts.Add(t, val);
+        }
+
+        public void AddRaw(uint t, double val, string metric, string tags = null)
+        {
+            var ts = getOrCreate(metric, tags);
+            ts.Add(t, val);
         }
 
         public IEnumerable<TimeSeries> Metric(string metric)
@@ -55,21 +85,17 @@ namespace StarStats.Common
             Data = new List<Point>();
         }
 
-        public void Add(Timestamp t, double v)
+        public void Add(uint t, double v)
         {
-            if (Data.LastOrDefault().Value == v)
-            {
-                return;
-            }
             Data.Add(new Point { Time = t, Value = v });
         }
 
-        public IEnumerable<double> ToDaily(Timestamp max)
+        public IEnumerable<double> ToDaily(uint max)
         {
-            var days = Data.GroupBy(x => x.Time.DayStart()).ToDictionary(x => x.Key, x=> x.Last().Value);
+            var days = Data.GroupBy(x => Timestamp.DayStart(x.Time)).ToDictionary(x => x.Key, x=> x.Last().Value);
 
             double last = 0;
-            for(uint dayStart = 0; dayStart <= max.Raw; dayStart++)
+            for(uint dayStart = 0; dayStart <= max; dayStart++)
             {
                 if (days.ContainsKey(dayStart))
                 {
@@ -86,7 +112,7 @@ namespace StarStats.Common
 
     public struct Point
     {
-        public Timestamp Time;
+        public uint Time;
         public double Value;
     }
 }
