@@ -49,6 +49,7 @@
     <Compile Include="BundleMod.cs" />
     <Compile Include="MyDialogueBox.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StringInjector.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="i18n\default.json" />

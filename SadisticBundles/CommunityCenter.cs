@@ -55,6 +55,8 @@ namespace SadisticBundles
                     }
                     else
                     {
+                        GameState.Current.LookingAtVanillaRewards = true;
+                        ModEntry.InvalidateCache();
                         var responses = new List<MyResponse>();
                         if (!p.hasOrWillReceiveMail("ccPantry"))
                         {
@@ -81,6 +83,8 @@ namespace SadisticBundles
                             var text = rText("RewardVault") + " (80,000g)";
                             responses.Add(new MyResponse(text, () => buildUpgrade("ccVault", 80000)));
                         }
+                        GameState.Current.LookingAtVanillaRewards = false;
+                        ModEntry.InvalidateCache();
                         var menu = new MyDialogueBox(t("noteRewards"), responses, Helper);
                         Game1.activeClickableMenu = menu;
                     }

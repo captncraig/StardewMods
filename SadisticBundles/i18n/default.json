@@ -39,6 +39,12 @@
   "noteActivateN": "No thanks, I'll stick with the default game please.",
 
   "noteRewards": "We have many great gifts to give.",
-  "noteRewardsAlreadyWorking":  "We are already working on a project right now."
+  "noteRewardsAlreadyWorking": "We are already working on a project right now.",
+
+  "JunimoNote_RewardBoiler": "Reward: stuff",
+  "JunimoNote_RewardCrafts": "Reward: ???",
+  "JunimoNote_RewardPantry": "Reward: No More Crows",
+  "JunimoNote_RewardVault": "Reward: something good",
+  "JunimoNote_RewardFishTank": "Reward:something fishy"
 
 }

@@ -13,11 +13,13 @@ namespace SadisticBundles
             hlp = helper;
             var bundler = new BundleInjector(helper, Monitor);
             var ccMan = new CommunityCenterManager(helper, Monitor, bundler);
+            var stringer = new StringInjector(helper, Monitor);
             helper.Events.GameLoop.SaveLoaded += SaveLoaded;
             helper.Events.GameLoop.Saving += Saving;
             helper.Events.GameLoop.ReturnedToTitle += TitleReturn;
 
             helper.Content.AssetEditors.Add(bundler);
+            helper.Content.AssetEditors.Add(stringer);
         }
 
         const string saveKey = "sadistic-bundles";
@@ -46,6 +48,7 @@ namespace SadisticBundles
         public static void InvalidateCache()
         {
             hlp.Content.InvalidateCache("Data/Bundles");
+            hlp.Content.InvalidateCache("Strings/UI");
         }
 
 

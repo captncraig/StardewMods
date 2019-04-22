@@ -7,6 +7,6 @@
         public bool Activated { get; set; }
         public bool Declined { get; set; }
 
-        public bool UpgradeTomorrow { get; set; }
+        public bool LookingAtVanillaRewards { get; set; }
     }
 }
