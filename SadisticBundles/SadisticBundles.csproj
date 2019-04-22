@@ -43,10 +43,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Mod.cs" />
+    <Compile Include="BundleInjector.cs" />
+    <Compile Include="CommunityCenter.cs" />
+    <Compile Include="GameState.cs" />
+    <Compile Include="BundleMod.cs" />
+    <Compile Include="MyDialogueBox.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="i18n\default.json" />
     <None Include="manifest.json" />
     <None Include="packages.config" />
   </ItemGroup>
