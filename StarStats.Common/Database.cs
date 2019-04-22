@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using ProtoBuf;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace StarStats.Common
@@ -11,9 +12,13 @@ namespace StarStats.Common
         }
     }
 
+    [ProtoContract]
     public class Database
     {
+        [ProtoMember(1)]
         public uint Max;
+
+        [ProtoMember(2)]
         public IList<TimeSeries> Metrics;
 
         public Database()
@@ -73,11 +78,14 @@ namespace StarStats.Common
         }
     }
 
+    [ProtoContract]
     public class TimeSeries
     {
-
+        [ProtoMember(1)]
         public string Metric { get; set; } = "";
+        [ProtoMember(2)]
         public string Tags { get; set; } = "";
+        [ProtoMember(3)]
         public IList<Point> Data;
 
         public TimeSeries()
@@ -110,9 +118,12 @@ namespace StarStats.Common
         }
     }
 
+    [ProtoContract]
     public struct Point
     {
+        [ProtoMember(1)]
         public uint Time;
+        [ProtoMember(2)]
         public double Value;
     }
 }

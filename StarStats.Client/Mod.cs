@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
@@ -6,6 +7,7 @@ using StardewModdingAPI.Utilities;
 using StardewValley;
 using StardewValley.TerrainFeatures;
 using StarStats.Common;
+using ProtoBuf;
 
 namespace StarStats.Client
 {
@@ -23,20 +25,36 @@ namespace StarStats.Client
         }
 
         
-
         uint lastTimeChange = 0;
+        string fileName;
         public Database db;
 
         private void SaveLoaded(object sender, SaveLoadedEventArgs e)
         {
-            db = Helper.Data.ReadJsonFile<Database>($"data/{Constants.SaveFolderName}.json") ?? new Database();
+            fileName = Path.Combine(Constants.CurrentSavePath, "stats.bin");
+
+            if (!File.Exists(fileName))
+            {
+                db = new Database();
+            }
+            else
+            {
+                using (var file = File.OpenRead(fileName))
+                {
+                    db = Serializer.Deserialize<Database>(file);
+                }
+            }
+
             var ts = TimeStamp();
             lastTimeChange = 0;
         }
 
         private void Saving(object sender, SavingEventArgs e)
         {
-            Helper.Data.WriteJsonFile($"data/{Constants.SaveFolderName}.json", db);
+            using (var file = File.Create(fileName))
+            {
+                Serializer.Serialize(file, db);
+            }
         }
 
         private void DayStart()
