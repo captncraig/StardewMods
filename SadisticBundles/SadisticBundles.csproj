@@ -44,6 +44,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BundleInjector.cs" />
+    <Compile Include="CheatManager.cs" />
     <Compile Include="CommunityCenter.cs" />
     <Compile Include="GameState.cs" />
     <Compile Include="BundleMod.cs" />

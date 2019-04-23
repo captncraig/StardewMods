@@ -79,6 +79,7 @@ namespace SadisticBundles
 {"Vault/31", "bundleDesc31/O 434 1/-1 2000000 2000000/3"},
 {"Vault/32", "bundleDesc32/O 434 1/-1 5000000 5000000/4"},
 {"Vault/33", "bundleDesc33/O 434 1/-1 10000000 10000000/5"},
+{"Bulletin Board/34", "bundleDesc34/O 434 1/395 999 0 395 999 0 395 999 0 395 999 0/6"},
         };
 
         public void Edit<T>(IAssetData asset)
