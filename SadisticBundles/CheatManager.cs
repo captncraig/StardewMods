@@ -2,6 +2,7 @@
 using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Menus;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -19,6 +20,13 @@ namespace SadisticBundles
             Monitor = monitor;
             Helper.Events.GameLoop.DayEnding += DayEnding;
             Helper.Events.Display.MenuChanged += MenuChanged;
+            Helper.Events.Input.ButtonPressed += ButtonPressed;
+        }
+
+        private void ButtonPressed(object sender, ButtonPressedEventArgs e)
+        {
+            var action = e.Button.IsActionButton();
+            var tool = e.Button.IsUseToolButton();
         }
 
         private void MenuChanged(object sender, MenuChangedEventArgs e)
@@ -53,6 +61,7 @@ namespace SadisticBundles
         const int BForage5Perk = 0;
         const int BForage10Perk = 1;
         const int BRobinHalf = 2;
+        const int BMushroomTree = 3;
 
         private void DayEnding(object sender, DayEndingEventArgs e)
         {
@@ -65,7 +74,7 @@ namespace SadisticBundles
 
             foreach(var b in new int[]
             {
-                BRobinHalf,
+                BRobinHalf, BMushroomTree,
             })
             {
                 if (!p.hasOrWillReceiveMail(rewardMail(b)))
