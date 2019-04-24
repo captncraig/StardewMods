@@ -82,6 +82,19 @@ namespace SadisticBundles
 {"Bulletin Board/34", "bundleDesc34/O 434 1/395 999 0 395 999 0 395 999 0 395 999 0/6"},
         };
 
+        public IList<Item> GetItems(int id)
+        {
+            var l = new List<Item>();
+            var row = mydata.Single(x => x.Key.EndsWith($"/{id}")).Value;
+            var items = row.Split('/')[2].Split(' ');
+            for(var i = 0; i<items.Length; i += 3)
+            {
+                var it = new StardewValley.Object(int.Parse(items[i]), int.Parse(items[i + 1]), quality: int.Parse(items[i + 2]));
+                l.Add(it);
+            }
+            return l;
+        }
+
         public void Edit<T>(IAssetData asset)
         {
             if (asset.AssetNameEquals("Data/Bundles"))

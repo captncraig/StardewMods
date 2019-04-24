@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Acheivements.cs" />
     <Compile Include="BundleInjector.cs" />
     <Compile Include="CheatManager.cs" />
     <Compile Include="CommunityCenter.cs" />
@@ -50,6 +51,7 @@
     <Compile Include="BundleMod.cs" />
     <Compile Include="MyDialogueBox.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StoreHelper.cs" />
     <Compile Include="StringInjector.cs" />
   </ItemGroup>
   <ItemGroup>
