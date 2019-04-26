@@ -1,4 +1,6 @@
-﻿namespace SadisticBundles
+﻿using System.Collections.Generic;
+
+namespace SadisticBundles
 {
     public class GameState
     {
@@ -8,5 +10,7 @@
         public bool Declined { get; set; }
 
         public bool LookingAtVanillaRewards { get; set; }
+
+        public IList<int> Level5PerksAdded = new List<int>();
     }
 }

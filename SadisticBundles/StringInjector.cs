@@ -16,7 +16,7 @@ namespace SadisticBundles
 
         public bool CanEdit<T>(IAssetInfo asset)
         {
-            if (GameState.Current == null || !GameState.Current.Activated) return false;
+            if (GameState.Current?.Activated != true) return false;
 
             if (asset.AssetNameEquals("Strings/UI") && !GameState.Current.LookingAtVanillaRewards) return true;
 

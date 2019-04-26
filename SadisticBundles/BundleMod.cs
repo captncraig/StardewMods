@@ -67,6 +67,10 @@ namespace SadisticBundles
         {
             hlp.Content.InvalidateCache("Data/Bundles");
             hlp.Content.InvalidateCache("Strings/UI");
+            foreach(var ass in CheatManager.shopOpenAssets)
+            {
+                hlp.Content.InvalidateCache(ass);
+            }
         }
 
 
