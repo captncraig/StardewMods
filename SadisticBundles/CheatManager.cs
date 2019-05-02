@@ -41,12 +41,12 @@ namespace SadisticBundles
         {
             Helper = helper;
             Monitor = monitor;
-            Helper.Events.GameLoop.DayEnding += DayEnding;
-            Helper.Events.Display.MenuChanged += MenuChanged;
-            Helper.Events.Input.ButtonPressed += ButtonPressed;
-            Helper.Events.GameLoop.Saving += Saving;
-            Helper.Events.Player.Warped += Warped;
-            Helper.Events.GameLoop.DayStarted += DayStarted;
+            //Helper.Events.GameLoop.DayEnding += DayEnding;
+            //Helper.Events.Display.MenuChanged += MenuChanged;
+            //Helper.Events.Input.ButtonPressed += ButtonPressed;
+            //Helper.Events.GameLoop.Saving += Saving;
+            //Helper.Events.Player.Warped += Warped;
+            //Helper.Events.GameLoop.DayStarted += DayStarted;
         }
 
         private void Warped(object sender, WarpedEventArgs e)
@@ -247,6 +247,7 @@ namespace SadisticBundles
 
         public bool CanEdit<T>(IAssetInfo asset)
         {
+            return false;
             // mail is always safe, since we are just adding new fields.
             if (asset.AssetNameEquals("Data/mail")) return true;
             if (bundleDone(BShopsOpen) && shopOpenAssets.Any(x => asset.AssetNameEquals(x))) return true;

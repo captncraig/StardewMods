@@ -1,91 +1,109 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Harmony;
+using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
+using StardewValley.Menus;
 using StardewValley.Objects;
 
 namespace RecipeReminders
 {
-    public class ModConfig
-    {
-        public int ExtraChancesIfUnknown { get; set; } = 3;
+    public class MyDialogue : DialogueBox {
+        public MyDialogue(string dialogue, List<Response> responses, int width = 1200) : base(dialogue, responses, width) { }
     }
+
     public class ModEntry : Mod
     {
-        static ModConfig config;
         public override void Entry(IModHelper helper)
         {
-            config = helper.ReadConfig<ModConfig>();
-            var harmony = HarmonyInstance.Create("captncraig.stardew.mod.recipes");
-            harmony.Patch(
-                original: AccessTools.Method(typeof(TV), "getWeeklyRecipe"),
-                prefix: new HarmonyMethod(typeof(ModEntry), nameof(ModEntry.getWeeklyRecipe))
-            );
-            helper.Events.GameLoop.DayStarted += DayStart;
+            helper.Events.Display.MenuChanged += MenuChanged;
+            helper.Events.GameLoop.DayStarted += DayStarted;
         }
 
-        private void DayStart(object sender, DayStartedEventArgs e)
+
+        private int todaysRecipe = 0;
+
+        private void DayStarted(object sender, DayStartedEventArgs e)
         {
-            var day = Game1.shortDayNameFromDayOfSeason(Game1.dayOfMonth);
-            if(Game1.stats.DaysPlayed < 5)
-            {
-                return;
-            }
-            if (day != "Wed" && day != "Sun")
-            {
-                return;
-            }
-            var recipe = getRecipe();
-            if (!Game1.player.cookingRecipes.ContainsKey(recipe))
-            {
-                Game1.addHUDMessage(new HUDMessage($"Watch TV today to learn {recipe}", 1));
-            }
+            todaysRecipe = 0;
         }
 
-        private static int getWhichWeek()
+
+        private void MenuChanged(object sender, MenuChangedEventArgs e)
         {
-            int whichWeek = (int)(Game1.stats.DaysPlayed % 224 / 7);
-            Dictionary<string, string> cookingRecipeChannel = Game1.temporaryContent.Load<Dictionary<string, string>>("Data\\TV\\CookingChannel");
-            if (Game1.shortDayNameFromDayOfSeason(Game1.dayOfMonth).Equals("Wed"))
+            if (!Game1.hasLoadedGame) return;
+            var loc = Game1.currentLocation;
+            if (loc == null || loc.Name != "FarmHouse") return;
+            var dia = e.NewMenu as DialogueBox;
+            if (dia == null || dia is MyDialogue) return;
+
+            var tv = loc.afterQuestion?.Target as TV;
+            var texts = Helper.Reflection.GetField<List<string>>(dia, "dialogues").GetValue();
+            if (tv == null || texts?.Count != 1 || texts[0] != Game1.content.LoadString("Strings\\StringsFromCSFiles:TV.cs.13120")) return;
+            var responses = Helper.Reflection.GetField<List<Response>>(dia, "responses").GetValue();
+
+            //todo: localize
+            responses.Insert(responses.Count - 2, new Response("fish", "The Big One"));
+            Game1.activeClickableMenu = new MyDialogue(texts[0], responses);
+
+            loc.afterQuestion = new GameLocation.afterQuestionBehavior((f, s) =>
             {
-                var candidates = new List<int>();
-                for (var i = 1; i<=whichWeek; i++)
+                var screenInfo = Helper.Reflection.GetField<TemporaryAnimatedSprite>(tv, "screen");
+                var day = Game1.shortDayNameFromDayOfSeason(Game1.dayOfMonth);
+                if (s == "fish")
                 {
-                    var recipeName = cookingRecipeChannel[string.Concat(i)].Split(new char[] { '/' })[0];
-                    candidates.Add(i);
-                    if (!Game1.player.cookingRecipes.ContainsKey(recipeName))
-                    {
-                        for (var j = 0; j < config.ExtraChancesIfUnknown; j++)
-                        {
-                            candidates.Add(i);
-                        }
-                    }
+
+                    screenInfo.SetValue(new TemporaryAnimatedSprite("LooseSprites\\Cursors", new Rectangle(517, 361, 42, 28), 150f, 2, 999999, tv.getScreenPosition(), false, false, (float)(tv.boundingBox.Bottom - 1) / 10000f + 1E-05f, 0f, Color.White, tv.getScreenSizeModifier(), 0f, 0f, 0f, false));
+                    Game1.drawObjectDialogue(Game1.parseText(Game1.content.LoadString("Strings\\StringsFromCSFiles:TV.cs.13124")));
                 }
-                Random r = new Random((int)(Game1.stats.DaysPlayed + (int)Game1.uniqueIDForThisGame / 2));
-                whichWeek = candidates[r.Next(candidates.Count)];
-            }
-            return whichWeek;
+                else if (day == "Wed" && s == "The")
+                {
+                    var strs = getWeeklyRecipe();
+                    screenInfo.SetValue(new TemporaryAnimatedSprite("LooseSprites\\Cursors", new Rectangle(602, 361, 42, 28), 150f, 2, 999999, tv.getScreenPosition(), false, false, (float)(tv.boundingBox.Bottom - 1) / 10000f + 1E-05f, 0f, Color.White, tv.getScreenSizeModifier(), 0f, 0f, 0f, false));
+                    Game1.drawObjectDialogue(Game1.parseText(Game1.content.LoadString("Strings\\StringsFromCSFiles:TV.cs.13127")));
+                    Game1.afterDialogues = new Game1.afterFadeFunction(()=>
+                    {
+                        Game1.multipleDialogues(strs);
+                        Game1.afterDialogues = new Game1.afterFadeFunction(()=>tv.turnOffTV());
+                    });
+                }
+                else
+                {
+                    tv.selectChannel(f, s);
+                }
+            });
         }
 
-        private static string getRecipe()
-        {
-            var ww = getWhichWeek();
-            Dictionary<string, string> cookingRecipeChannel = Game1.temporaryContent.Load<Dictionary<string, string>>("Data\\TV\\CookingChannel");
-            return cookingRecipeChannel[string.Concat(ww)].Split(new char[] { '/' })[0];
-        }
-
-        // copied directly from source. Just uses my getWhichWeek function.
-        public static bool getWeeklyRecipe(ref string[] __result)
+        // straight from decompilation with a few modifications, in commented block
+        protected virtual string[] getWeeklyRecipe()
         {
             string str;
             string str1;
             string str2;
             string[] text = new string[2];
-            int whichWeek = getWhichWeek();
+            // modifications start
+            int maxWeek = (int)Game1.stats.DaysPlayed / 7;
             Dictionary<string, string> cookingRecipeChannel = Game1.temporaryContent.Load<Dictionary<string, string>>("Data\\TV\\CookingChannel");
+            var whichWeek = maxWeek;
+            if (todaysRecipe != 0)
+            {
+                whichWeek = todaysRecipe;
+            }
+            else
+            {
+                var possible = cookingRecipeChannel.Where(x => int.Parse(x.Key) <= maxWeek).ToList();
+                var unknown = possible.Where(x => !Game1.player.cookingRecipes.ContainsKey(x.Value.Split('/')[0])).ToList();
+                if (unknown.Any())
+                {
+                    possible = unknown;
+                }
+                Random r = new Random((int)(Game1.stats.DaysPlayed + (int)Game1.uniqueIDForThisGame / 2));
+                whichWeek = int.Parse(possible[r.Next(possible.Count)].Key);
+                todaysRecipe = whichWeek;
+            }
+            // modifications end
             try
             {
                 string recipeName = cookingRecipeChannel[string.Concat(whichWeek)].Split(new char[] { '/' })[0];
@@ -141,8 +159,7 @@ namespace RecipeReminders
                     Game1.player.cookingRecipes.Add(recipeName, 0);
                 }
             }
-            __result = text;
-            return false;
+            return text;
         }
     }
 
