@@ -8,7 +8,7 @@ using StardewValley;
 using StardewValley.Menus;
 using StardewValley.Objects;
 
-namespace RecipeReminders
+namespace DVR
 {
     public class MyDialogue : DialogueBox {
         public MyDialogue(string dialogue, List<Response> responses, int width = 1200) : base(dialogue, responses, width) { }
@@ -18,16 +18,21 @@ namespace RecipeReminders
     {
         public override void Entry(IModHelper helper)
         {
+            
             helper.Events.Display.MenuChanged += MenuChanged;
             helper.Events.GameLoop.DayStarted += DayStarted;
         }
 
 
         private int todaysRecipe = 0;
+        private IList<Fish> fishForToday = null;
+        private int timesViewedFish = 0;
 
         private void DayStarted(object sender, DayStartedEventArgs e)
         {
             todaysRecipe = 0;
+            timesViewedFish = 0;
+            fishForToday = Fishies.GetFishForToday();
         }
 
 
@@ -44,8 +49,9 @@ namespace RecipeReminders
             if (tv == null || texts?.Count != 1 || texts[0] != Game1.content.LoadString("Strings\\StringsFromCSFiles:TV.cs.13120")) return;
             var responses = Helper.Reflection.GetField<List<Response>>(dia, "responses").GetValue();
 
-            //todo: localize
-            responses.Insert(responses.Count - 2, new Response("fish", "The Big One"));
+            var t = Helper.Translation;
+
+            responses.Insert(responses.Count - 2, new Response("fish", t.Get("fish_channel")));
             Game1.activeClickableMenu = new MyDialogue(texts[0], responses);
 
             loc.afterQuestion = new GameLocation.afterQuestionBehavior((f, s) =>
@@ -54,9 +60,21 @@ namespace RecipeReminders
                 var day = Game1.shortDayNameFromDayOfSeason(Game1.dayOfMonth);
                 if (s == "fish")
                 {
-
-                    screenInfo.SetValue(new TemporaryAnimatedSprite("LooseSprites\\Cursors", new Rectangle(517, 361, 42, 28), 150f, 2, 999999, tv.getScreenPosition(), false, false, (float)(tv.boundingBox.Bottom - 1) / 10000f + 1E-05f, 0f, Color.White, tv.getScreenSizeModifier(), 0f, 0f, 0f, false));
-                    Game1.drawObjectDialogue(Game1.parseText(Game1.content.LoadString("Strings\\StringsFromCSFiles:TV.cs.13124")));
+                    var fish = fishForToday[timesViewedFish];
+                    timesViewedFish = (timesViewedFish + 1) % fishForToday.Count;
+                    var pos = tv.getScreenPosition();
+                    var scale = tv.getScreenSizeModifier() + 1;
+                    pos.X += 7 * scale;
+                    pos.Y += (float)(scale * 1.4);
+                   
+                    screenInfo.SetValue(new TemporaryAnimatedSprite(Game1.objectSpriteSheetName, GameLocation.getSourceRectForObject(fish.ID), 150f, 1, 999999, pos, false, false, (float)(tv.boundingBox.Bottom - 1) / 10000f + 1E-05f, 0f, Color.White, scale, 0f, 0f, 0f, false));
+                    
+                    Game1.drawObjectDialogue(Game1.parseText(t.Get("fish_intro")));
+                    Game1.afterDialogues = new Game1.afterFadeFunction(() =>
+                    {
+                        Game1.multipleDialogues(fish.GetTvText(t).ToArray());
+                        Game1.afterDialogues = new Game1.afterFadeFunction(() => tv.turnOffTV());
+                    });
                 }
                 else if (day == "Wed" && s == "The")
                 {

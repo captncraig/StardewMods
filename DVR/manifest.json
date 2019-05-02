@@ -1,0 +1,10 @@
+﻿{
+  "Name": "DVR",
+  "Author": "captncraig",
+  "Version": "1.0.0",
+  "Description": "Record Queen of Sauce and watch what you missed",
+  "UniqueID": "captncraig.dvr",
+  "EntryDll": "DVR.dll",
+  "MinimumApiVersion": "2.10.0",
+  "UpdateKeys": []
+}
